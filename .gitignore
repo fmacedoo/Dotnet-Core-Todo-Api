@@ -30,3 +30,7 @@ msbuild.wrn
 
 # Visual Studio 2015
 .vs/
+
+.vscode/launch.json
+.vscode/tasks.json
+TodoList/todo-list-database.db
