@@ -15,8 +15,6 @@ namespace TodoList.Core.Middlewares
 
         public static IApplicationBuilder UseCoreMiddlewares(this IApplicationBuilder app)
         {
-            app.UseMiddleware<ApiExceptionMiddleware>();
-
             var options = new TokenProviderOptions {
                 Path = "/api/token",
                 SigningCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256),

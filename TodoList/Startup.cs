@@ -17,6 +17,7 @@ using TodoList.Core.Cache;
 using TodoList.Core.Data;
 using TodoList.Core.Middlewares;
 using TodoList.Model.Services;
+using ServiceOrders.Core.Filters;
 
 namespace TodoList
 {
@@ -54,6 +55,18 @@ namespace TodoList
             services.AddCoreServices();
 
             services.AddTodoListServices();
+
+            services.AddScoped<TokenAuthorizationFilter>();
+            services.AddScoped<ApiExceptionFilter>();
+
+            // Add framework services.
+            services.AddMvc(opts =>
+            {
+                //Here it is being added globally. 
+                //Could be used as attribute on selected controllers instead
+                opts.Filters.AddService(typeof(TokenAuthorizationFilter));
+                opts.Filters.AddService(typeof(ApiExceptionFilter));
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
