@@ -8,18 +8,18 @@ using TodoList.Model.Data;
 
 namespace TodoList.Model.Services
 {
-    public class TokenResolverService : ITokenResolverService
+    public class UserResolverService : IUserResolverService
     {
         TodoListContext _context;
         UserManager<CoreIdentityUser> _userManager;
 
-        public TokenResolverService(TodoListContext context, UserManager<CoreIdentityUser> userManager)
+        public UserResolverService(TodoListContext context, UserManager<CoreIdentityUser> userManager)
         {
             _context = context;
             _userManager = userManager;
         }
 
-        public async Task<TokenResolved> Resolve(string userName, string password)
+        public async Task<CoreIdentityUser> Resolve(string userName, string password)
         {
             var user = await _userManager.FindByNameAsync(userName);
 
@@ -27,13 +27,12 @@ namespace TodoList.Model.Services
             {
                 if (await _userManager.CheckPasswordAsync(user, password))
                 {
-                    var tokenResolved = new TokenResolved();
-                    tokenResolved.User = await _context.Users.SingleOrDefaultAsync(o => o.Id == user.Id);
-                    tokenResolved.Claims = await _context.UserClaims.Where(o => o.UserId == user.Id)
-                        .Select(o => TokenClaim.Parse(o))
-                        .ToListAsync();
+                    var userWithClaims = await _context.Users
+                        .Include(o => o.Claims)
+                        .Where(o => o.Id == user.Id)
+                        .SingleOrDefaultAsync();
 
-                    return tokenResolved;
+                    return userWithClaims;
                 }
             }
 

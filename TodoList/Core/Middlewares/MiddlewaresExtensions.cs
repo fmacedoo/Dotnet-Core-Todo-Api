@@ -18,9 +18,9 @@ namespace TodoList.Core.Middlewares
             var options = new TokenProviderOptions {
                 Path = "/api/token",
                 SigningCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256),
-                TokenResolverServiceFactory = () => {
+                UserResolverServiceFactory = () => {
                     var serviceScope = app.ApplicationServices.GetService<IServiceScopeFactory>().CreateScope();
-                    return serviceScope.ServiceProvider.GetRequiredService<ITokenResolverService>();
+                    return serviceScope.ServiceProvider.GetRequiredService<IUserResolverService>();
                 }
             };
 

@@ -27,7 +27,7 @@ namespace TodoList.Core.Middlewares
         /// </summary>
         public SigningCredentials SigningCredentials { get; set; }
 
-        public TokenResolverServiceFactoryDelegate TokenResolverServiceFactory { get; set; }
+        public UserResolverServiceFactoryDelegate UserResolverServiceFactory { get; set; }
 
         /// <summary>
         /// Generates a random value (nonce) for each generated token.

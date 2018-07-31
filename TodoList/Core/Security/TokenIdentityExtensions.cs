@@ -11,9 +11,8 @@ namespace TodoList.Core.Security
             serviceCollection.AddScoped<TokenHelper>(s => {
                 var contextAcessor = s.GetService<IHttpContextAccessor>();
                 var httpContext = contextAcessor.HttpContext;
-                var cacheProvider = s.GetService<ICacheProvider>();
                 var claimsPrincipal = httpContext != null ? httpContext.User : null;
-                return new TokenHelper(cacheProvider, claimsPrincipal);
+                return new TokenHelper(claimsPrincipal);
             });
 
             serviceCollection.AddScoped<TokenAuthorizationFilter>();

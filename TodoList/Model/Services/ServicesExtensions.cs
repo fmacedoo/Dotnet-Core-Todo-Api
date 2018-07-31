@@ -7,7 +7,7 @@ namespace TodoList.Model.Services
     {
         public static IServiceCollection AddTodoListServices(this IServiceCollection serviceCollection)
         {
-            serviceCollection.AddScoped(typeof(ITokenResolverService), typeof(TokenResolverService));
+            serviceCollection.AddScoped(typeof(IUserResolverService), typeof(UserResolverService));
 
             return serviceCollection;
         }

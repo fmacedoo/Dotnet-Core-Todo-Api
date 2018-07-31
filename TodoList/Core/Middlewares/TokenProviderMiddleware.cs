@@ -71,46 +71,23 @@ namespace TodoList.Core.Middlewares
             var username = context.Request.Form["username"];
             var password = context.Request.Form["password"];
 
-            var tokenResolverService = _options.TokenResolverServiceFactory();
+            var userResolverService = _options.UserResolverServiceFactory();
 
-            var tokenResolved = await tokenResolverService.Resolve(username, password);
-            if (tokenResolved == null)
+            var user = await userResolverService.Resolve(username, password);
+            if (user == null)
             {
                 context.Response.StatusCode = 400;
                 await context.Response.WriteAsync("Invalid username or password.");
                 return;
             }
 
-            var now = DateTime.UtcNow;
-
-            // Specifically add the jti (nonce), iat (issued timestamp), and sub (subject/user) claims.
-            // You can add other claims here, if you want:
-            var claims = new Claim[]
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, username),
-                new Claim(JwtRegisteredClaimNames.Jti, await _options.NonceGenerator()),
-                new Claim(JwtRegisteredClaimNames.Iat, ToUnixEpochDate(now).ToString(), ClaimValueTypes.Integer64)
-            };
-
-            // Create the JWT and write it to a string
-            var jwt = new JwtSecurityToken(
-                claims: claims,
-                notBefore: now,
-                expires: now.Add(_options.Expiration),
-                signingCredentials: _options.SigningCredentials);
-            var encodedJwt = new JwtSecurityTokenHandler().WriteToken(jwt);
+            var encodedJwt = await _tokenHelper.Build(user, _options);
 
             var response = new
             {
                 access_token = encodedJwt,
                 expires_in = (int)_options.Expiration.TotalSeconds
             };
-
-            _tokenHelper.Authenticate(new Token {
-                Value = response.access_token,
-                ExpiresIn = response.expires_in,
-                User = tokenResolved
-            });
 
             // Serialize and return the response
             context.Response.ContentType = "application/json";
@@ -139,13 +116,5 @@ namespace TodoList.Core.Middlewares
                 throw new ArgumentNullException(nameof(TokenProviderOptions.NonceGenerator));
             }
         }
-
-        /// <summary>
-        /// Get this datetime as a Unix epoch timestamp (seconds since Jan 1, 1970, midnight UTC).
-        /// </summary>
-        /// <param name="date">The date to convert.</param>
-        /// <returns>Seconds since Unix epoch.</returns>
-        public static long ToUnixEpochDate(DateTime date)
-            => (long)Math.Round((date.ToUniversalTime() - new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero)).TotalSeconds);
     }
 }

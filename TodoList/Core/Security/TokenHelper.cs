@@ -1,21 +1,25 @@
 using System;
+using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.Extensions.Options;
 using TodoList.Core.Cache;
+using TodoList.Core.Data;
+using TodoList.Core.Middlewares;
 
 namespace TodoList.Core.Security
 {
     public class TokenHelper
     {
-        ICacheProvider _cacheProvider;
         ClaimsPrincipal _claimsPrincipal;
 
-        public TokenHelper(ICacheProvider cacheProvider, ClaimsPrincipal claimsPrincipal)
+        public TokenHelper(ClaimsPrincipal claimsPrincipal)
         {
-            _cacheProvider = cacheProvider;
             _claimsPrincipal = claimsPrincipal;
         }
 
@@ -35,11 +39,29 @@ namespace TodoList.Core.Security
             return _claimsPrincipal.Claims.Select(o => o.ToString()).Intersect(claims.Select(o => o.ToString())).Any();
         }
 
-        private void setClaims(TokenResolved identityUser)
+        public async Task<string> Build(CoreIdentityUser user, TokenProviderOptions options)
         {
-            var claimsIdentity = new ClaimsIdentity(identityUser.Claims.Select(o => o.ToClaim()));
-            claimsIdentity.AddClaim(new Claim(ClaimTypes.NameIdentifier, identityUser.User.Id));
-            _claimsPrincipal.AddIdentity(claimsIdentity);
+            var now = DateTime.UtcNow;
+
+            var claims = new Claim[]
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, user.UserName),
+                new Claim(JwtRegisteredClaimNames.Jti, await options.NonceGenerator()),
+                new Claim(JwtRegisteredClaimNames.Iat, now.ToUnixEpochDate().ToString(), ClaimValueTypes.Integer64),
+                new Claim("IdentityUserId", user.Id)
+            };
+
+            claims.Union(user.Claims.Select(o => new Claim(o.ClaimType, o.ClaimValue)));
+
+            // Create the JWT and write it to a string
+            var jwt = new JwtSecurityToken(
+                claims: claims,
+                notBefore: now,
+                expires: now.Add(options.Expiration),
+                signingCredentials: options.SigningCredentials);
+            var encodedJwt = new JwtSecurityTokenHandler().WriteToken(jwt);
+
+            return encodedJwt;
         }
 
         public bool Authorize(ActionContext context)
@@ -53,10 +75,13 @@ namespace TodoList.Core.Security
 
             var authorizationToken = getAuthorizationToken(context.HttpContext.Request);
             if (authorizationToken != null) {
-                var token = _cacheProvider.Get<Token>(authorizationToken);
-                if (token != null && DateTime.Now < token.CreatedAt.AddSeconds(token.ExpiresIn))
+                var jwt = new JwtSecurityToken(authorizationToken);
+                if (jwt != null && DateTime.Now < jwt.ValidTo)
                 {
-                    setClaims(token.User);
+                    // Set the jwt claims at the ClaimsPrincipal to future validations
+                    var claimsIdentity = new ClaimsIdentity(jwt.Claims);
+                    _claimsPrincipal.AddIdentity(claimsIdentity);
+                    
                     return true;
                 }
             }
@@ -64,17 +89,7 @@ namespace TodoList.Core.Security
             return false;
         }
 
-        public void Authenticate(Token token)
-        {
-            _cacheProvider.Store(token.Value, token);
-        }
-
-        public void Logoff(HttpRequest request)
-        {
-            var authorizationToken = getAuthorizationToken(request);
-            _cacheProvider.Delete<Token>(authorizationToken);
-        }
-
+        // Catches the Authorization header content and return the token string
         private string getAuthorizationToken(HttpRequest request)
         {
             var header = request.Headers["Authorization"].FirstOrDefault();
