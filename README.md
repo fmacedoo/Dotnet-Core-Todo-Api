@@ -1,2 +1,3 @@
 # Dotnet-Core-Todo-Api
-A simple todo list implemented using .Net Core including user authentication using JWT tokens, Redis cache and SQlite.
+
+A simple todo list implemented using .NET Core including user authentication using JWT tokens.
